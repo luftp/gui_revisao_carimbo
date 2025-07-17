@@ -4,6 +4,8 @@ import tkinter as tk
 from tkinter import filedialog
 import revisar_carimbo_func
 from revisar_carimbo_func import revisador_carimbo
+import threading
+import time
 
 class gui_revisao_carimbo:
 
@@ -176,13 +178,24 @@ class gui_revisao_carimbo:
 
         pass
 
+
     async def browser_folder(self):
+
+        time.sleep(0.1)
 
         root = tk.Tk()
 
         root.withdraw()
 
         self.spinner_select.set_visibility(True)
+        
+        root.lift()
+
+        root.attributes('-topmost', True)
+
+        root.after_idle(root.attributes, '-topmost', False)
+
+        root.update()
 
         self.pasta_entrada = await run.cpu_bound(filedialog.askdirectory)
 

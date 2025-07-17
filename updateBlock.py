@@ -262,7 +262,7 @@ folder_out : str
 file : str
     Nome do desenho que será alterado
     
-zcadapp : str
+cadapp : str
     Objeto tipo COM que contém uma aplicação ZWCad aberta
     
 data_emissao : str
@@ -276,7 +276,7 @@ space : str
 
 '''
 
-def update_block(folder_in, folder_out, file, zcadapp, args_revisao, n_bloco, space):
+def update_block(folder_in, folder_out, file, cadapp, args_revisao, n_bloco, space):
 
     # Caminho para os arquivos de entrada
 
@@ -284,15 +284,12 @@ def update_block(folder_in, folder_out, file, zcadapp, args_revisao, n_bloco, sp
 
     # Abrindo os arquivos para manipulação
 
-    doc = zcadapp.Documents.Open(drawing_in)
-
-    time.sleep(2)
-
+    doc = cadapp.Documents.Open(drawing_in)
 
 
     # Verificar o estado do ZWcad para evitar erros de chamado
 
-    # state = zcadapp.GetZcadState()
+    # state = cadapp.GetZcadState()
 
     # while not state.IsQuiescent:
     #     time.sleep(2)
@@ -300,10 +297,9 @@ def update_block(folder_in, folder_out, file, zcadapp, args_revisao, n_bloco, sp
     # Selecionar o space que será feita a procura pelo bloco
 
     if space == 'PaperSpace':
-        time.sleep(2)
-        entities = zcadapp.ActiveDocument.PaperSpace
+        entities = cadapp.ActiveDocument.PaperSpace
     elif space == 'ModelSpace':
-        entities = zcadapp.ActiveDocument.ModelSpace
+        entities = cadapp.ActiveDocument.ModelSpace
     else:
         raise ValueError('Erro na variável de entrada: space')
     
@@ -359,7 +355,5 @@ def update_block(folder_in, folder_out, file, zcadapp, args_revisao, n_bloco, sp
     doc.SaveAs(drawing_out)
 
     # Fechar o desenho
-    for document in zcadapp.Documents:
+    for document in cadapp.Documents:
         document.Close(SaveChanges=False)
-
-    return True

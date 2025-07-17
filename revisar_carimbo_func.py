@@ -56,15 +56,22 @@ def revisar_carimbo(folder_in, dados_revisao):
     if app == None:
 
         return 'APLICATIVO CAD NÃO ENCONTRADO'
+    
+    try:
 
-    if len(app.Documents) != 0:
-        if app.Documents[0].WindowTitle == 'Drawing1.dwg':
-            app.Documents[0].Close()
-        else:
-            app = None
-            return 'FECHAR DOCUMENTOS ABERTOS ANTES DE RODAR O PROGRAMA'
+        if len(app.Documents) != 0:
+            if app.Documents[0].WindowTitle == 'Drawing1.dwg':
+                app.Documents[0].Close()
+            else:
+                app = None
+                return 'FECHAR DOCUMENTOS ABERTOS ANTES DE RODAR O PROGRAMA'
+            
+        app.Visible = True
+            
+    except Exception as e:
 
-    app.Visible = True
+        log_saida += str(e)
+
 
     lista_desenhos = lista_des_dir.list_dir_func(folder_in)
 
@@ -104,7 +111,7 @@ def revisar_carimbo(folder_in, dados_revisao):
 
     while len(lista_desenhos) != 0:
 
-        if cont_err_cham > 5:
+        if cont_err_cham > 20:
 
             print('LIMITE DE ERROS ATINGIDO, DESENHOS RESTANTES:')
 
@@ -127,6 +134,7 @@ def revisar_carimbo(folder_in, dados_revisao):
                     log_saida = ''
 
             except Exception as e:
+
                 if 'BLOCO NÃO FOI ENCONTRADO' in str(e):
                     lista_desenhos_bloco_nencontrado.append(desenho)
                     lista_desenhos.remove(desenho)
@@ -142,17 +150,17 @@ def revisar_carimbo(folder_in, dados_revisao):
                 cont_err_cham += 1
                 print(cont_err_cham)
 
-                for document in app.Documents:
-                    document.Close(SaveChanges=False)
 
     try:
         for document in app.Documents:
             document.Close(SaveChanges=False)
-    except:
-        pass
+    except Exception as e:
+        log_saida += str(e)
 
     t2 = datetime.datetime.now()
-
+    print(log_saida)
+    print(n_desenhos)
+    print(f'{datetime.datetime.now():%X}')
     log_saida += 'Concluído ' + str(n_desenhos) + ' desenhos em ' + f'{datetime.datetime.now():%X}'
     log_saida += '<br>'
 
@@ -179,9 +187,10 @@ def revisar_carimbo(folder_in, dados_revisao):
             log_saida += '-' + erro + '<br>'
     else:
         pass
-
-    app.Quit()
-
+    try:
+        app.Quit()
+    except:
+        pass
     return log_saida
 
 

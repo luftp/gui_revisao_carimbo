@@ -1,11 +1,10 @@
-from nicegui import run,ui
+from nicegui import run,ui,app
 import datetime
 import tkinter as tk
 from tkinter import filedialog
 import revisar_carimbo_func
 from revisar_carimbo_func import revisador_carimbo
-import threading
-import time
+
 
 class gui_revisao_carimbo:
 
@@ -53,9 +52,13 @@ class gui_revisao_carimbo:
 
 
 
+        ui.add_head_html('<link rel="icon" href="favicon.ico" type="image/x-icon">')
+
+
+
         with ui.card():
 
-            ui.label('SUBIR REVISÃO DE CARIMBO (versão beta 0.1)').style('color:#6E93D6; font-size:150%')
+            ui.label('SUBIR REVISÃO DE CARIMBO (versão beta 0.2)').style('color:#6E93D6; font-size:150%')
 
             ui.space()
 
@@ -70,11 +73,11 @@ class gui_revisao_carimbo:
 
             with ui.row():
 
-                self.carimbo_padrao = ui.radio(['Vale', 'MRS'], value='Vale', on_change=self.update_lista_dados_revisao).props('inline')
+                self.carimbo_padrao = ui.radio(['Vale', 'MRS', 'Rumo'], value='Vale', on_change=self.update_lista_dados_revisao).props('inline')
 
             ui.label('Nome do Bloco - Dados de entrada').props('inline')
 
-            self.n_bloco =  ui.input('Nome do Bloco', value='A1', on_change=self.update_lista_dados_revisao).style('width: 100px;')
+            self.n_bloco =  ui.input('Nome do Bloco', value='A1', on_change=self.update_lista_dados_revisao).style('width: 200px;')
 
             ui.label('Tabela de Revisão - Dados de entrada').props('inline')
 
@@ -85,9 +88,9 @@ class gui_revisao_carimbo:
 
                 self.lista_dados_entrada['T.E.'] = ui.input('T.E.', on_change=self.update_lista_dados_revisao).style('width: 50px;')
 
-                self.lista_dados_entrada['DESCRIÇÃO'] = ui.input('DESCRIÇÃO', on_change=self.update_lista_dados_revisao).style('width: 200px;')
+                self.lista_dados_entrada['DESCRIÇÃO'] = ui.input('DESCRIÇÃO', on_change=self.update_lista_dados_revisao).style('width: 250px;')
 
-                self.lista_dados_entrada['PROJ'] = ui.input('PROJ.', on_change=self.update_lista_dados_revisao).style('width: 50px;')
+                self.lista_dados_entrada['PROJ.'] = ui.input('PROJ.', on_change=self.update_lista_dados_revisao).style('width: 50px;')
 
                 self.lista_dados_entrada['DES.'] = ui.input('DES.', on_change=self.update_lista_dados_revisao).style('width: 50px;')
 
@@ -109,6 +112,11 @@ class gui_revisao_carimbo:
                 self.spinner_select = ui.spinner(size='lg')
 
                 self.spinner_select.visible = False
+
+
+            self.label_pasta = ui.label('')
+
+            self.label_pasta.visible = False
 
 
             # ui.button('Info', on_click=self.dialog_info.open)
@@ -150,8 +158,12 @@ class gui_revisao_carimbo:
         self.lista_dados_revisao['app_cad'] = self.app_cad.value.lower()
 
 
-        if self.lista_dados_revisao['padrao_bloco'] == 'mrs':
+        for key in self.lista_dados_entrada.keys():
 
+            self.lista_dados_entrada[key].visible = True
+
+
+        if self.lista_dados_revisao['padrao_bloco'] == 'mrs':
         
             self.lista_dados_entrada['DES.'].visible = False
 
@@ -160,48 +172,67 @@ class gui_revisao_carimbo:
             self.lista_dados_entrada['A.A.R.'].visible = False
 
             self.lista_dados_entrada['AUT.'].visible = False
-        
+
         elif self.lista_dados_revisao['padrao_bloco'] == 'vale':
 
+            pass
 
-            self.lista_dados_entrada['DES.'].visible = True
+        elif self.lista_dados_revisao['padrao_bloco'] == 'rumo':
 
-            self.lista_dados_entrada['VER.'].visible = True
+            self.lista_dados_entrada['T.E.'].visible = False
 
-            self.lista_dados_entrada['A.A.R.'].visible = True
+            self.lista_dados_entrada['PROJ.'].visible = False
 
-            self.lista_dados_entrada['AUT.'].visible = True
-        
+            self.lista_dados_entrada['A.A.R.'].visible = False
 
+            self.lista_dados_entrada['AUT.'].visible = False
 
     def todo(self):
 
         pass
 
-
-    async def browser_folder(self):
-
-        time.sleep(0.1)
+    @staticmethod
+    def solicitar_diretorio():
 
         root = tk.Tk()
 
         root.withdraw()
 
-        self.spinner_select.set_visibility(True)
+        root.iconbitmap(default='df_engenharia_favicon.ico')
         
         root.lift()
 
-        root.attributes('-topmost', True)
+        root.attributes('-topmost', 1)
 
         root.after_idle(root.attributes, '-topmost', False)
 
         root.update()
 
-        self.pasta_entrada = await run.cpu_bound(filedialog.askdirectory)
+        pasta_entrada = filedialog.askdirectory(parent=root)
+
+        root.destroy()
+
+        return pasta_entrada
+
+
+    async def browser_folder(self):
+
+        self.spinner_select.set_visibility(True)
+
+        pasta_entrada = await run.cpu_bound(gui_revisao_carimbo.solicitar_diretorio)
+        
 
         self.spinner_select.set_visibility(False)
 
-        root.destroy()
+        if pasta_entrada != '':
+
+            self.pasta_entrada = pasta_entrada
+
+            self.label_pasta.text = f'Pasta selecionada = {self.pasta_entrada}'
+
+            self.label_pasta.set_visibility(True)
+
+
 
 
     async def chamar_revisar_carimbo(self):

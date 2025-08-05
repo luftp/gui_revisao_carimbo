@@ -3,6 +3,7 @@ from updateBlock import update_block
 import datetime
 import win32com.client
 import os
+import time
 
 def revisar_carimbo(folder_in, dados_revisao):
 
@@ -33,11 +34,15 @@ def revisar_carimbo(folder_in, dados_revisao):
 
     app = None
 
+    delay = 0
+
     if app_cad == 'zwcad':
 
         try:
 
             app = win32com.client.dynamic.Dispatch("ZWCAD.Application")
+            delay = 0
+            app.Visible = True
 
         except Exception as e:
 
@@ -49,6 +54,11 @@ def revisar_carimbo(folder_in, dados_revisao):
         try:
 
             app = win32com.client.dynamic.Dispatch("AutoCAD.Application")
+            delay = 1
+            app.Visible = True
+            time.sleep(3)
+
+
         except Exception as e:
 
             log_saida += str(e)
@@ -66,12 +76,11 @@ def revisar_carimbo(folder_in, dados_revisao):
                 app = None
                 return 'FECHAR DOCUMENTOS ABERTOS ANTES DE RODAR O PROGRAMA'
             
-        app.Visible = True
+        
             
     except Exception as e:
 
         log_saida += str(e)
-
 
     lista_desenhos = lista_des_dir.list_dir_func(folder_in)
 
@@ -127,7 +136,7 @@ def revisar_carimbo(folder_in, dados_revisao):
 
             try:
                 log_saida = update_block(folder_in, folder_out, desenho, app, args_revisao,
-                            n_bloco, space)
+                            n_bloco, space, delay)
                 lista_desenhos.remove(desenho)
 
                 if log_saida == None:
@@ -158,9 +167,7 @@ def revisar_carimbo(folder_in, dados_revisao):
         log_saida += str(e)
 
     t2 = datetime.datetime.now()
-    print(log_saida)
-    print(n_desenhos)
-    print(f'{datetime.datetime.now():%X}')
+
     log_saida += 'Concluído ' + str(n_desenhos) + ' desenhos em ' + f'{datetime.datetime.now():%X}'
     log_saida += '<br>'
 
@@ -191,7 +198,10 @@ def revisar_carimbo(folder_in, dados_revisao):
         app.Quit()
     except:
         pass
+    
     return log_saida
+
+
 
 
 

@@ -1,11 +1,29 @@
 import os
 import time
+from functools import wraps
+from pywintypes import com_error
 
+
+def nova_tentativa_erro_chamada(max_tentativas=15, delay=2.0):
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_tentativas):
+                try:
+                    return func(*args, **kwargs)
+                except com_error as e:
+                    print("dentro do decorator: " + str(e.hresult))
+                    time.sleep(delay)
+            raise TimeoutError('O script excedeu o número de tentativas por erro de chamada para o mesmo desenho')
+        return wrapper
+    return decorator
 
 '''
 Função auxiliar para verificar se uma string contém números
 
 '''
+
 def has_numbers(inputString):
     return any(char.isdigit() for char in inputString)
 
@@ -29,6 +47,100 @@ def subirletra(revisao):
 
         return revisao
     
+
+'''
+Função que faz alterações nas tags do bloco de revisão para o padrão Rumo
+
+Estrutura:
+REV-DESCRIÇÃO-PROJETISTA-VERIFICADOR-DATA
+
+'''
+
+
+def subir_revisao_rumo(lista_tags_bloco, args_revisao):
+
+    rev = args_revisao[0]
+
+    descricao = args_revisao[2]
+
+    proj = args_revisao[3]
+
+    ver = args_revisao[5]
+
+    data_emissao = args_revisao[8]
+
+
+    for tags_bloco in lista_tags_bloco:
+
+
+        # Separar os dados de revisão (começam a partir da posição 12 no caso do bloco da Rumo)
+
+        dados_revisao = [i.TextString for i in tags_bloco[12:]]
+
+        # Pegar todas as revisões (separadas de 5 em 5 no bloco da Rumo)
+
+        revisoes = dados_revisao[::5]
+
+        ultima_revisao = 1
+
+        for i in revisoes:
+
+            if i != '':
+
+                ultima_revisao = i
+
+        index_ultima_revisao = revisoes.index(ultima_revisao)
+        
+        index_ultima_revisao = index_ultima_revisao*5 + 12
+
+        index_nova_revisao = index_ultima_revisao + 5
+
+
+        # Subir a última revisão
+
+        if has_numbers(ultima_revisao):
+
+            ultima_revisao = str(int(ultima_revisao)+1)
+
+        # else:
+
+        #     ultima_revisao = subirletra(ultima_revisao)
+
+
+        # Revisão na tabela de revisão    
+
+        if rev == '':
+            tags_bloco[index_nova_revisao].TextString = ultima_revisao
+        else:
+            tags_bloco[index_nova_revisao].TextString = rev
+
+        # Descrição da emissão na tabela de revisão 
+        if descricao == '':
+            tags_bloco[index_nova_revisao + 1].TextString = tags_bloco[index_ultima_revisao + 1].TextString
+        else:
+            tags_bloco[index_nova_revisao + 1].TextString = descricao   
+
+            # Sigla do projetista na tabela de revisão 
+        if proj == '':
+            tags_bloco[index_nova_revisao + 2].TextString = tags_bloco[index_ultima_revisao + 2].TextString
+        else:
+            tags_bloco[index_nova_revisao + 2].TextString = proj 
+
+        # Sigla do verificador na tabela de revisão 
+        if ver == '':
+            tags_bloco[index_nova_revisao + 3].TextString = tags_bloco[index_ultima_revisao + 3].TextString
+        else:
+            tags_bloco[index_nova_revisao + 3].TextString = ver
+
+        # Data de emissão na tabela de revisão
+
+        tags_bloco[index_nova_revisao + 4].TextString = data_emissao
+
+
+
+
+
+
 '''
 Função que faz alterações nas tags do bloco de revisão para o padrão Vale
 Estrutura:
@@ -38,6 +150,9 @@ REV-TIPO DE EMISSÃO-DESCRIÇÃO-PROJETISTA-DESENHISTA-VERIFICADOR-APROVADOR-AUT
 '''
 
 def subir_revisao_vale(tags_bloco, args_revisao):
+
+
+    
 
     # Separar os dados de revisão (começam a partir da posição 13 no caso do bloco da Vale)
 
@@ -154,7 +269,7 @@ def subir_revisao_vale(tags_bloco, args_revisao):
     tags_bloco[index_nova_revisao + 8].TextString = data_emissao
 
     # Scale factor do atributo de data de emissão
-    tags_bloco[index_nova_revisao + 8].ScaleFactor = 1
+    tags_bloco[index_nova_revisao + 8].ScaleFactor = .85
 
 
 
@@ -168,7 +283,6 @@ REV-TIPO DE EMISSÃO-DESCRIÇÃO-PROJETISTA-DATA
 
 def subir_revisao_mrs(tags_bloco, args_revisao):
 
-    
     # Separar os dados de revisão (começam a partir da posição 13 no caso do bloco da MRS)
 
     dados_revisao = [i.TextString for i in tags_bloco[13:]]
@@ -275,8 +389,11 @@ space : str
     string que define se o bloco a ser substituido está no model space ou no paperspace
 
 '''
+@nova_tentativa_erro_chamada()
+def update_block(folder_in, folder_out, file, cadapp, args_revisao, n_bloco, space, delay):
 
-def update_block(folder_in, folder_out, file, cadapp, args_revisao, n_bloco, space):
+    for document in cadapp.Documents:
+        document.Close(SaveChanges=False)
 
     # Caminho para os arquivos de entrada
 
@@ -286,13 +403,7 @@ def update_block(folder_in, folder_out, file, cadapp, args_revisao, n_bloco, spa
 
     doc = cadapp.Documents.Open(drawing_in)
 
-
-    # Verificar o estado do ZWcad para evitar erros de chamado
-
-    # state = cadapp.GetZcadState()
-
-    # while not state.IsQuiescent:
-    #     time.sleep(2)
+    time.sleep(delay)
 
     # Selecionar o space que será feita a procura pelo bloco
 
@@ -305,23 +416,51 @@ def update_block(folder_in, folder_out, file, cadapp, args_revisao, n_bloco, spa
     
     # Procurar o bloco no desenho
 
+    padrao_bloco = args_revisao[-1]
+
     achou = False
+    
+    if padrao_bloco != 'rumo':
 
-    for entity in entities:
-        name = entity.EntityName
+        for entity in entities:
+            name = entity.EntityName
 
-        if name == 'AcDbBlockReference':
-            if entity.EffectiveName == n_bloco:
-                tags_bloco =  entity.GetAttributes()
-                achou = True
-                break
+            if name == 'AcDbBlockReference':
+                if entity.EffectiveName == n_bloco:
+                    tags_bloco =  entity.GetAttributes()
+                    achou = True
+                    break
+
+    else:
+
+        layouts = doc.layouts
+
+        lista_tags_bloco = []
+
+        for layout in layouts:
+
+            if layout.name != 'Model':
+
+                for entity in layout.Block:
+
+                        if entity.EntityName == 'AcDbBlockReference':
+
+                            if entity.EffectiveName == n_bloco:
+
+                                tags_bloco =  entity.GetAttributes()
+
+                                achou = True
+
+                                lista_tags_bloco.append(tags_bloco)
+                                break
+
 
     if not achou:
         
         raise ValueError('BLOCO NÃO FOI ENCONTRADO')
 
-
     #SUBIR REVISÃO
+
     if achou:
 
         padrao_bloco = args_revisao[-1]
@@ -331,6 +470,9 @@ def update_block(folder_in, folder_out, file, cadapp, args_revisao, n_bloco, spa
 
         elif padrao_bloco == 'mrs':
             subir_revisao_mrs(tags_bloco, args_revisao)
+
+        elif padrao_bloco == 'rumo':
+            subir_revisao_rumo(lista_tags_bloco, args_revisao)
 
 
     doc.PurgeAll()
@@ -343,7 +485,6 @@ def update_block(folder_in, folder_out, file, cadapp, args_revisao, n_bloco, spa
 
         file = file_split[0] + '=' + str(int(file_split[-1][0])+1) + '.' + file_split[-1].split('.')[-1]
 
-
     elif padrao_bloco == 'mrs':
 
         pass
@@ -351,8 +492,10 @@ def update_block(folder_in, folder_out, file, cadapp, args_revisao, n_bloco, spa
     drawing_out = os.path.join(folder_out, file)
 
     # Salvar desenho
-    time.sleep(2)
-    doc.SaveAs(drawing_out)
+
+    if achou:
+
+        doc.SaveAs(drawing_out)
 
     # Fechar o desenho
     for document in cadapp.Documents:
